@@ -1,0 +1,48 @@
+{
+  "name": "spock-test-runner",
+  "displayName": "Spock Test Runner",
+  "description": "Test runner for Spock Groovy tests in Java projects",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:groovy"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "spock-test-runner.runTest",
+        "title": "Run Spock Test"
+      },
+      {
+        "command": "spock-test-runner.runSpecificTest",
+        "title": "Run This Test"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceLangId == groovy",
+          "command": "spock-test-runner.runTest",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^18.x",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}
