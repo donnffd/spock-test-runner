@@ -89,7 +89,7 @@ function extractTestName(filePath) {
 async function runSpockTest(testClassName, testMethod, workspacePath, buildTool) {
     const terminal = vscode.window.createTerminal('Spock Test Runner');
     terminal.show();
-    const testName = testMethod ? `${testClassName}.${testMethod.replace(/\s+/g, '.')}` : testClassName;
+    const testName = testMethod ? `${testClassName}.${testMethod}` : testClassName;
     if (buildTool === 'gradle') {
         terminal.sendText(`cd ${workspacePath}`);
         terminal.sendText(`./gradlew test --tests ${testName}`);

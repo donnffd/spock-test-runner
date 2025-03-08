@@ -2,7 +2,13 @@
   "name": "spock-test-runner",
   "displayName": "Spock Test Runner",
   "description": "Test runner for Spock Groovy tests in Java projects",
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "publisher": "danielmicah",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danielmicah/spock-test-runner"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
