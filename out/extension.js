@@ -108,7 +108,7 @@ function detectBuildTool(workspacePath) {
 }
 function extractTestName(filePath) {
     const fileName = path.basename(filePath, '.groovy');
-    return fileName.endsWith('Spec') ? fileName : null;
+    return fileName.endsWith('Spec') || fileName.endsWith('Test') ? fileName : null;
 }
 async function runSpockTest(testClassName, testMethod, workspacePath, buildTool, logger) {
     const terminal = vscode.window.createTerminal('Spock Test Runner');

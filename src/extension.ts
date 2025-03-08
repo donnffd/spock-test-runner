@@ -94,7 +94,7 @@ function detectBuildTool(workspacePath: string): 'gradle' | 'maven' | null {
 
 function extractTestName(filePath: string): string | null {
   const fileName = path.basename(filePath, '.groovy');
-  return fileName.endsWith('Spec') ? fileName : null;
+  return fileName.endsWith('Spec') || fileName.endsWith('Test') ? fileName : null;
 }
 
 async function runSpockTest(testClassName: string, testMethod: string | null, workspacePath: string, buildTool: 'gradle' | 'maven', logger: vscode.OutputChannel) {
