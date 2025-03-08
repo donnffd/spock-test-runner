@@ -92,7 +92,7 @@ async function runSpockTest(testClassName, testMethod, workspacePath, buildTool)
     const testName = testMethod ? `${testClassName}.${testMethod}` : testClassName;
     if (buildTool === 'gradle') {
         terminal.sendText(`cd ${workspacePath}`);
-        terminal.sendText(`./gradlew test --tests ${testName}`);
+        terminal.sendText(`./gradlew test --tests "${testName}"`);
     }
     else if (buildTool === 'maven') {
         terminal.sendText(`cd ${workspacePath}`);
