@@ -37,6 +37,14 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Command to debug a specific test
+  context.subscriptions.push(
+    vscode.commands.registerCommand('spock-test-runner.debugSpecificTest', async (testClassName: string, testMethod: string, workspacePath: string, buildTool: 'gradle' | 'maven') => {
+      logger.appendLine(`[INFO] Debugging test ${testClassName}.${testMethod}`);
+      await runSpockTest(testClassName, testMethod, workspacePath, buildTool, logger, true);
+    })
+  );
+
   // CodeLens provider with regex
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
@@ -68,6 +76,12 @@ export function activate(context: vscode.ExtensionContext) {
                 command: 'spock-test-runner.runSpecificTest',
                 arguments: [testClassName, testMethod, workspaceFolder.uri.fsPath, buildTool],
                 tooltip: `Run "${testMethod}"`
+              }),
+              new vscode.CodeLens(line.range, {
+                title: '🐛 Debug Test',
+                command: 'spock-test-runner.debugSpecificTest',
+                arguments: [testClassName, testMethod, workspaceFolder.uri.fsPath, buildTool],
+                tooltip: `Debug "${testMethod}"`
               })
             );
           }
@@ -97,46 +111,33 @@ function extractTestName(filePath: string): string | null {
   return fileName.endsWith('Spec') || fileName.endsWith('Test') ? fileName : null;
 }
 
-async function runSpockTest(testClassName: string, testMethod: string | null, workspacePath: string, buildTool: 'gradle' | 'maven', logger: vscode.OutputChannel) {
+async function runSpockTest(testClassName: string, testMethod: string | null, workspacePath: string, buildTool: 'gradle' | 'maven', logger: vscode.OutputChannel, debug: boolean = false) {
   const terminal = vscode.window.createTerminal('Spock Test Runner');
   terminal.show();
 
-  const testName = testMethod ? `${testClassName}.${testMethod.replace(/\s+/g, '.')}` : testClassName;
+  // Escape spaces in test method name and wrap in quotes
+  const escapedTestName = testMethod 
+    ? `"${testClassName}.${testMethod}"` 
+    : `"${testClassName}"`;
+  
   const commandArgs = buildTool === 'gradle'
-    ? ['./gradlew', 'test', '--tests', testName]
-    : ['mvn', 'test', `-Dtest=${testName}`];
+    ? ['./gradlew', 'test', `--tests ${escapedTestName}`].concat(debug ? ['--debug-jvm'] : [])
+    : ['mvn', 'test', `-Dtest=${escapedTestName}`].concat(debug ? ['-Dmaven.surefire.debug'] : []);
 
   try {
-    logger.appendLine(`[INFO] Starting test: ${testName} in ${workspacePath}`);
+    logger.appendLine(`[INFO] Starting ${debug ? 'debug' : 'test'}: ${testClassName}.${testMethod || ''} in ${workspacePath}`);
     terminal.sendText(`cd ${workspacePath}`);
+    
+    // Join the command arguments properly for the terminal
+    const fullCommand = commandArgs.join(' ');
+    terminal.sendText(fullCommand);
 
-    // Spawn the test process
-    const process = spawn(commandArgs[0], commandArgs.slice(1), {
-      cwd: workspacePath,
-      shell: true
-    });
-
-    // Log stdout and stderr to terminal
-    process.stdout.on('data', (data) => {
-      const output = data.toString();
-      terminal.sendText(output);
-      logger.appendLine(`[TEST OUTPUT] ${output.trim()}`);
-    });
-
-    process.stderr.on('data', (data) => {
-      const error = data.toString();
-      terminal.sendText(error);
-      logger.appendLine(`[TEST ERROR] ${error.trim()}`);
-    });
-
-    process.on('close', (code) => {
-      const result = code === 0 ? 'succeeded' : 'failed';
-      terminal.sendText(`Test execution ${result} with exit code ${code}`);
-      logger.appendLine(`[INFO] Test ${testName} ${result} with exit code ${code}`);
-    });
+    if (debug) {
+      vscode.window.showInformationMessage('Debugger is ready to attach. The test will wait for debugger connection on port 5005.');
+    }
 
   } catch (error: unknown) {
-    const errorMessage = `Failed to run ${testName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    const errorMessage = `Failed to run ${testClassName}.${testMethod || ''}: ${error instanceof Error ? error.message : 'Unknown error'}`;
     terminal.sendText(errorMessage);
     logger.appendLine(`[ERROR] ${errorMessage}`);
     vscode.window.showErrorMessage(errorMessage);

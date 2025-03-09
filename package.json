@@ -2,7 +2,7 @@
   "name": "spock-test-runner",
   "displayName": "Spock Test Runner",
   "description": "Test runner for Spock Groovy tests in Java projects",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "danielmicah",
   "icon": "images/icon.png",
   "repository": {

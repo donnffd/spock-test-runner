@@ -38,7 +38,6 @@ exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
-const child_process_1 = require("child_process");
 function activate(context) {
     const logger = vscode.window.createOutputChannel('Spock Test Runner');
     const diagnostic = vscode.languages.createDiagnosticCollection('spock-test-runner');
@@ -64,6 +63,11 @@ function activate(context) {
         logger.appendLine(`[INFO] Running test ${testClassName}.${testMethod}`);
         await runSpockTest(testClassName, testMethod, workspacePath, buildTool, logger);
     }));
+    // Command to debug a specific test
+    context.subscriptions.push(vscode.commands.registerCommand('spock-test-runner.debugSpecificTest', async (testClassName, testMethod, workspacePath, buildTool) => {
+        logger.appendLine(`[INFO] Debugging test ${testClassName}.${testMethod}`);
+        await runSpockTest(testClassName, testMethod, workspacePath, buildTool, logger, true);
+    }));
     // CodeLens provider with regex
     context.subscriptions.push(vscode.languages.registerCodeLensProvider({ language: 'groovy', scheme: 'file' }, {
         provideCodeLenses(document) {
@@ -88,6 +92,11 @@ function activate(context) {
                     command: 'spock-test-runner.runSpecificTest',
                     arguments: [testClassName, testMethod, workspaceFolder.uri.fsPath, buildTool],
                     tooltip: `Run "${testMethod}"`
+                }), new vscode.CodeLens(line.range, {
+                    title: '🐛 Debug Test',
+                    command: 'spock-test-runner.debugSpecificTest',
+                    arguments: [testClassName, testMethod, workspaceFolder.uri.fsPath, buildTool],
+                    tooltip: `Debug "${testMethod}"`
                 }));
             }
             if (codeLenses.length === 0) {
@@ -110,40 +119,28 @@ function extractTestName(filePath) {
     const fileName = path.basename(filePath, '.groovy');
     return fileName.endsWith('Spec') || fileName.endsWith('Test') ? fileName : null;
 }
-async function runSpockTest(testClassName, testMethod, workspacePath, buildTool, logger) {
+async function runSpockTest(testClassName, testMethod, workspacePath, buildTool, logger, debug = false) {
     const terminal = vscode.window.createTerminal('Spock Test Runner');
     terminal.show();
-    const testName = testMethod ? `${testClassName}.${testMethod.replace(/\s+/g, '.')}` : testClassName;
+    // Escape spaces in test method name and wrap in quotes
+    const escapedTestName = testMethod
+        ? `"${testClassName}.${testMethod}"`
+        : `"${testClassName}"`;
     const commandArgs = buildTool === 'gradle'
-        ? ['./gradlew', 'test', '--tests', testName]
-        : ['mvn', 'test', `-Dtest=${testName}`];
+        ? ['./gradlew', 'test', `--tests ${escapedTestName}`].concat(debug ? ['--debug-jvm'] : [])
+        : ['mvn', 'test', `-Dtest=${escapedTestName}`].concat(debug ? ['-Dmaven.surefire.debug'] : []);
     try {
-        logger.appendLine(`[INFO] Starting test: ${testName} in ${workspacePath}`);
+        logger.appendLine(`[INFO] Starting ${debug ? 'debug' : 'test'}: ${testClassName}.${testMethod || ''} in ${workspacePath}`);
         terminal.sendText(`cd ${workspacePath}`);
-        // Spawn the test process
-        const process = (0, child_process_1.spawn)(commandArgs[0], commandArgs.slice(1), {
-            cwd: workspacePath,
-            shell: true
-        });
-        // Log stdout and stderr to terminal
-        process.stdout.on('data', (data) => {
-            const output = data.toString();
-            terminal.sendText(output);
-            logger.appendLine(`[TEST OUTPUT] ${output.trim()}`);
-        });
-        process.stderr.on('data', (data) => {
-            const error = data.toString();
-            terminal.sendText(error);
-            logger.appendLine(`[TEST ERROR] ${error.trim()}`);
-        });
-        process.on('close', (code) => {
-            const result = code === 0 ? 'succeeded' : 'failed';
-            terminal.sendText(`Test execution ${result} with exit code ${code}`);
-            logger.appendLine(`[INFO] Test ${testName} ${result} with exit code ${code}`);
-        });
+        // Join the command arguments properly for the terminal
+        const fullCommand = commandArgs.join(' ');
+        terminal.sendText(fullCommand);
+        if (debug) {
+            vscode.window.showInformationMessage('Debugger is ready to attach. The test will wait for debugger connection on port 5005.');
+        }
     }
     catch (error) {
-        const errorMessage = `Failed to run ${testName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        const errorMessage = `Failed to run ${testClassName}.${testMethod || ''}: ${error instanceof Error ? error.message : 'Unknown error'}`;
         terminal.sendText(errorMessage);
         logger.appendLine(`[ERROR] ${errorMessage}`);
         vscode.window.showErrorMessage(errorMessage);
